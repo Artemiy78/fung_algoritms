@@ -1,0 +1,1 @@
+/na input_task04.txt result_task04_a.txt

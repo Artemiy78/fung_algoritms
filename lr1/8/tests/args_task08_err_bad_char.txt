@@ -1,0 +1,1 @@
+input_task08_bad.txt result_task08_b.txt

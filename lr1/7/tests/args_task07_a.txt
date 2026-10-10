@@ -1,0 +1,1 @@
+-a input_task07_a.txt result_task07_a.txt

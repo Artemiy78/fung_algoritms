@@ -1,0 +1,1 @@
+input_task08_empty.txt result_task08_e.txt
