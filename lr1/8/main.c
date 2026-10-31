@@ -73,7 +73,27 @@ status_t print_error(const status_t st)
     {
         return rc;
     }
-    fprintf(stderr, "Ошибка: %s\n", msg);
+    printf("Ошибка: %s\n", msg);
+    return STATUS_OK;
+}
+
+status_t get_file_name(const char *path, const char **name)
+{
+    if (path == NULL || name == NULL)
+    {
+        return STATUS_NULL_POINTER;
+    }
+
+    const char *result = path;
+    for (const char *p = path; *p != '\0'; p++)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            result = p + 1;
+        }
+    }
+
+    *name = result;
     return STATUS_OK;
 }
 
@@ -87,7 +107,20 @@ status_t check_paths(const char *in_path, const char *out_path)
     {
         return STATUS_EMPTY_PATH;
     }
-    if (strcmp(in_path, out_path) == 0)
+
+    const char *in_name;
+    const char *out_name;
+    status_t st = get_file_name(in_path, &in_name);
+    if (st == STATUS_OK)
+    {
+        st = get_file_name(out_path, &out_name);
+    }
+    if (st != STATUS_OK)
+    {
+        return st;
+    }
+
+    if (strcmp(in_name, out_name) == 0)
     {
         return STATUS_SAME_FILE;
     }
@@ -390,7 +423,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        fprintf(stderr, "Формат: [программа] [входной файл] [выходной файл]\n");
+        printf("Формат: [программа] [входной файл] [выходной файл]\n");
         return 1;
     }
 
@@ -404,14 +437,14 @@ int main(int argc, char *argv[])
     FILE *in = fopen(argv[1], "r");
     if (in == NULL)
     {
-        fprintf(stderr, "Не удалось открыть входной файл '%s'\n", argv[1]);
+        printf("Не удалось открыть входной файл '%s'\n", argv[1]);
         return 1;
     }
 
     FILE *out = fopen(argv[2], "w");
     if (out == NULL)
     {
-        fprintf(stderr, "Не удалось открыть выходной файл '%s'\n", argv[2]);
+        printf("Не удалось открыть выходной файл '%s'\n", argv[2]);
         fclose(in);
         return 1;
     }

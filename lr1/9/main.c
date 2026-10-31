@@ -9,7 +9,6 @@ typedef enum
     STATUS_OK,
     STATUS_NULL_POINTER,
     STATUS_OUT_OF_RANGE,
-    STATUS_INVALID_FORMAT,
     STATUS_MEMORY_ERROR,
     STATUS_OVERFLOW,
     STATUS_INVALID_NUMBER,
@@ -61,25 +60,25 @@ status_t print_error(const status_t st)
     {
         return rc;
     }
-    fprintf(stderr, "Ошибка: %s\n", msg);
+    printf("Ошибка: %s\n", msg);
     return STATUS_OK;
 }
 
-status_t parse_int(const char *str, int *res)
+status_t parse_int(const char *s, int *out)
 {
-    if (str == NULL || res == NULL)
-    {
+    if (s == NULL || out == NULL)
         return STATUS_NULL_POINTER;
-    }
 
-    int x;
-    char extra;
-    if (sscanf(str, "%d%c", &x, &extra) != 1)
-    {
+    char *end = NULL;
+    long long v = strtoll(s, &end, 10);
+
+    if (end == s || *end != '\0')
         return STATUS_INVALID_NUMBER;
-    }
 
-    *res = x;
+    if (v < INT_MIN || v > INT_MAX)
+        return STATUS_OUT_OF_RANGE;
+
+    *out = (int)v;
     return STATUS_OK;
 }
 
@@ -388,7 +387,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        fprintf(stderr, "Неверный формат\n");
+        printf("Неверный формат\n");
         return 1;
     }
 }

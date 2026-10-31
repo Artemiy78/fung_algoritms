@@ -1,14 +1,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
+#include <limits.h>
 
 typedef enum
 {
     STATUS_OK,
     STATUS_NULL_POINTER,
     STATUS_OUT_OF_RANGE,
-    STATUS_INVALID_FORMAT,
     STATUS_INVALID_NUMBER,
+    STATUS_INVALID_INT_NUMBER,
+    STATUS_INVALID_DOUBLE_NUMBER,
 } status_t;
 
 typedef enum
@@ -40,6 +43,12 @@ status_t status_message(const status_t status, const char **msg)
     case STATUS_INVALID_NUMBER:
         *msg = "аргумент не является числом";
         break;
+    case STATUS_INVALID_INT_NUMBER:
+        *msg = "аргумент не является целым числом";
+        break;
+    case STATUS_INVALID_DOUBLE_NUMBER:
+        *msg = "аргумент не является вещественным числом";
+        break;
     default:
         *msg = "неизвестная ошибка";
         break;
@@ -55,43 +64,43 @@ status_t print_error(const status_t st)
     {
         return rc;
     }
-    fprintf(stderr, "Ошибка: %s\n", msg);
+    printf("Ошибка: %s\n", msg);
     return STATUS_OK;
 }
 
-status_t parse_double(const char *str, double *res)
+status_t parse_int(const char *s, int *out)
 {
-    if (str == NULL || res == NULL)
-    {
+    if (s == NULL || out == NULL)
         return STATUS_NULL_POINTER;
-    }
 
-    double x;
-    char extra; // для отсечения строк вида 1.5abc
-    if (sscanf(str, "%lf%c", &x, &extra) != 1 || !isfinite(x))
-    {
-        return STATUS_INVALID_NUMBER;
-    }
+    char *end = NULL;
+    long long v = strtoll(s, &end, 10);
 
-    *res = x;
+    if (end == s || *end != '\0')
+        return STATUS_INVALID_INT_NUMBER;
+
+    if (v < INT_MIN || v > INT_MAX)
+        return STATUS_OUT_OF_RANGE;
+
+    *out = (int)v;
     return STATUS_OK;
 }
 
-status_t parse_int(const char *str, int *res)
+status_t parse_double(const char *s, double *out)
 {
-    if (str == NULL || res == NULL)
-    {
+    if (s == NULL || out == NULL)
         return STATUS_NULL_POINTER;
-    }
 
-    int x;
-    char extra;
-    if (sscanf(str, "%d%c", &x, &extra) != 1)
-    {
-        return STATUS_INVALID_NUMBER;
-    }
+    char *end = NULL;
+    double v = strtod(s, &end);
 
-    *res = x;
+    if (end == s || *end != '\0')
+        return STATUS_INVALID_DOUBLE_NUMBER;
+
+    if (isnan(v) || isinf(v))
+        return STATUS_OUT_OF_RANGE;
+
+    *out = v;
     return STATUS_OK;
 }
 
@@ -145,30 +154,42 @@ status_t unique_permutations(const double eps, const double coef[3],
     {
         return STATUS_NULL_POINTER;
     }
-
-    const int idx[6][3] = {{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
-    size_t count = 0;
-
-    for (size_t i = 0; i < 6; i++)
+    if (eps <= 0)
     {
-        bool duplicate = false;
-        for (size_t j = 0; j < count; j++)
-        {
-            if (fabs(res[j][0] - coef[idx[i][0]]) < eps &&
-                fabs(res[j][1] - coef[idx[i][1]]) < eps &&
-                fabs(res[j][2] - coef[idx[i][2]]) < eps)
-            {
-                duplicate = true;
-                break;
-            }
-        }
-        if (!duplicate)
+        return STATUS_OUT_OF_RANGE;
+    }
+
+    size_t count = 0;
+    for (size_t i = 0; i < 3; i++)
+    {
+        for (size_t j = 0; j < 3; j++)
         {
             for (size_t k = 0; k < 3; k++)
             {
-                res[count][k] = coef[idx[i][k]];
+                if (i == j || i == k || j == k)
+                {
+                    continue;
+                }
+
+                bool duplicate = false;
+                for (size_t m = 0; m < count; m++)
+                {
+                    if (fabs(res[m][0] - coef[i]) < eps &&
+                        fabs(res[m][1] - coef[j]) < eps &&
+                        fabs(res[m][2] - coef[k]) < eps)
+                    {
+                        duplicate = true;
+                        break;
+                    }
+                }
+                if (!duplicate)
+                {
+                    res[count][0] = coef[i];
+                    res[count][1] = coef[j];
+                    res[count][2] = coef[k];
+                    count++;
+                }
             }
-            count++;
         }
     }
 
@@ -221,7 +242,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 4)
     {
-        fprintf(stderr, "Число аргументов должно быть больше 3\n");
+        printf("Число аргументов должно быть больше 3\n");
         return 1;
     }
 
@@ -229,7 +250,7 @@ int main(int argc, char *argv[])
     if ((argv[1][0] != '-' && argv[1][0] != '/') ||
         (argv[1][1] == '\0' || argv[1][2] != '\0'))
     {
-        fprintf(stderr, "Флаг должен иметь формат -n или /n\n");
+        printf("Флаг должен иметь формат -n или /n\n");
         return 1;
     }
     flag = argv[1][1];
@@ -242,14 +263,14 @@ int main(int argc, char *argv[])
     {
         if (argc != 6)
         {
-            fprintf(stderr, "Число аргументов должно быть равно 6\n");
+            printf("Число аргументов для q должно быть равно 6\n");
             return 1;
         }
         double e;
         double coef[3];
         if (((parse_double(argv[2], &e)) != STATUS_OK) || (e < 0.0))
         {
-            fprintf(stderr, "Третий аргумент должен быть вещественным числом больше 0\n");
+            printf("Третий аргумент Для q должен быть вещественным числом больше 0\n");
             return 1;
         }
 
@@ -257,7 +278,7 @@ int main(int argc, char *argv[])
         {
             if (parse_double(argv[3 + i], &coef[i]) != STATUS_OK)
             {
-                fprintf(stderr, "4, 5, 6 аргументы должен быть вещественными числами\n");
+                printf("4, 5, 6 аргументы для q должны быть вещественными числами\n");
                 return 1;
             }
         }
@@ -305,13 +326,13 @@ int main(int argc, char *argv[])
     {
         if (argc != 4)
         {
-            fprintf(stderr, "Число аргументов должно быть равно 4\n");
+            printf("Число аргументов для m должно быть равно 4\n");
             return 1;
         }
         int a, b;
         if (((parse_int(argv[2], &a)) != STATUS_OK) || ((parse_int(argv[3], &b)) != STATUS_OK))
         {
-            fprintf(stderr, "3 и 4 аргументы должны быть ненулевыми целыми числами\n");
+            printf("3 и 4 аргументы для m должны быть ненулевыми целыми числами\n");
             return 1;
         }
         bool is_m;
@@ -331,21 +352,21 @@ int main(int argc, char *argv[])
     {
         if (argc != 6)
         {
-            fprintf(stderr, "Число аргументов должно быть равно 6\n");
+            printf("Число аргументов для t должно быть равно 6\n");
             return 1;
         }
         double e;
         double nums[3];
         if (((parse_double(argv[2], &e)) != STATUS_OK) || (e <= 0.0))
         {
-            fprintf(stderr, "Третий аргумент должен быть вещественным числом больше 0\n");
+            printf("Третий аргумент для t должен быть вещественным числом больше 0\n");
             return 1;
         }
         for (int i = 0; i < 3; i++)
         {
             if (parse_double(argv[3 + i], &nums[i]) != STATUS_OK)
             {
-                fprintf(stderr, "4, 5, 6 аргументы должен быть вещественными числами\n");
+                printf("4, 5, 6 аргументы для t должны быть вещественными числами\n");
                 return 1;
             }
         }
@@ -364,7 +385,7 @@ int main(int argc, char *argv[])
     }
     default:
     {
-        fprintf(stderr, "Флаги: q, m, t\n");
+        printf("Флаги: q, m, t\n");
         return 1;
     }
     }

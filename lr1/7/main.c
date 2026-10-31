@@ -66,7 +66,27 @@ status_t print_error(const status_t st)
     {
         return rc;
     }
-    fprintf(stderr, "Ошибка: %s\n", msg);
+    printf("Ошибка: %s\n", msg);
+    return STATUS_OK;
+}
+
+status_t get_file_name(const char *path, const char **name)
+{
+    if (path == NULL || name == NULL)
+    {
+        return STATUS_NULL_POINTER;
+    }
+
+    const char *result = path;
+    for (const char *p = path; *p != '\0'; p++)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            result = p + 1;
+        }
+    }
+
+    *name = result;
     return STATUS_OK;
 }
 
@@ -80,7 +100,20 @@ status_t check_paths(const char *in_path, const char *out_path)
     {
         return STATUS_EMPTY_PATH;
     }
-    if (strcmp(in_path, out_path) == 0)
+
+    const char *in_name;
+    const char *out_name;
+    status_t st = get_file_name(in_path, &in_name);
+    if (st == STATUS_OK)
+    {
+        st = get_file_name(out_path, &out_name);
+    }
+    if (st != STATUS_OK)
+    {
+        return st;
+    }
+
+    if (strcmp(in_name, out_name) == 0)
     {
         return STATUS_SAME_FILE;
     }
@@ -131,15 +164,15 @@ status_t number_to_base(const unsigned value, const unsigned base, char *buf,
 
     const char *digits = "0123456789ABCDEF";
     char tmp[sizeof(unsigned) * 8];
-    unsigned rest = value;
+    unsigned remainder = value;
     size_t n = 0;
 
     do
     {
-        tmp[n] = digits[rest % base];
-        rest /= base;
+        tmp[n] = digits[remainder % base];
+        remainder /= base;
         n++;
-    } while (rest > 0);
+    } while (remainder > 0);
 
     if (n > size)
     {
@@ -304,7 +337,7 @@ status_t copy_token(FILE *in, FILE *out, const token_mode_t mode,
     return ferror(in) ? STATUS_IO_ERROR : STATUS_OK;
 }
 
-status_t merge_files(FILE *in1, FILE *in2, FILE *out)
+status_t combine_files(FILE *in1, FILE *in2, FILE *out)
 {
     if (in1 == NULL || in2 == NULL || out == NULL)
     {
@@ -313,7 +346,7 @@ status_t merge_files(FILE *in1, FILE *in2, FILE *out)
 
     bool eof1 = false;
     bool eof2 = false;
-    bool written = false; // чтобы не ставился пробел перед 1 лексемой
+    bool need_space = false; // чтобы не ставился пробел перел 1 лексемой
     int turn = 1;
 
     while (!eof1 || !eof2)
@@ -330,9 +363,9 @@ status_t merge_files(FILE *in1, FILE *in2, FILE *out)
         bool got;
         status_t st;
         if (turn == 1)
-            st = copy_token(in1, out, TOKEN_DEFAULT, written, &got);
+            st = copy_token(in1, out, TOKEN_DEFAULT, need_space, &got);
         else
-            st = copy_token(in2, out, TOKEN_DEFAULT, written, &got);
+            st = copy_token(in2, out, TOKEN_DEFAULT, need_space, &got);
 
         if (st != STATUS_OK)
         {
@@ -351,7 +384,7 @@ status_t merge_files(FILE *in1, FILE *in2, FILE *out)
             }
             continue;
         }
-        written = true;
+        need_space = true;
         turn = (turn == 1) ? 2 : 1;
     }
     return STATUS_OK;
@@ -365,7 +398,7 @@ status_t transform_file(FILE *in, FILE *out)
     }
 
     size_t index = 1;
-    bool written = false; // чтобы не ставился пробел перед 1 лексемой
+    bool need_space = false;
     bool got = true;
 
     while (got)
@@ -377,14 +410,14 @@ status_t transform_file(FILE *in, FILE *out)
             return st;
         }
 
-        st = copy_token(in, out, mode, written, &got);
+        st = copy_token(in, out, mode, need_space, &got);
         if (st != STATUS_OK)
         {
             return st;
         }
         if (got)
         {
-            written = true;
+            need_space = true;
             index++;
         }
     }
@@ -395,14 +428,14 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        fprintf(stderr, "Формат: [программа] [флаг] [пути к файлам]\n");
+        printf("Формат: [программа] [флаг] [пути к файлам]\n");
         return 1;
     }
 
     if ((argv[1][0] != '-' && argv[1][0] != '/') ||
         argv[1][1] == '\0' || argv[1][2] != '\0')
     {
-        fprintf(stderr, "Флаг должен иметь формат -n или /n\n");
+        printf("Флаг должен иметь формат -n или /n\n");
         return 1;
     }
     char flag = argv[1][1];
@@ -412,19 +445,19 @@ int main(int argc, char *argv[])
     case 'r':
         if (argc != 5)
         {
-            fprintf(stderr, "Формат для -r: [программа] -r [file1] [file2] [выходной файл]\n");
+            printf("Формат для -r: [программа] -r [file1] [file2] [выходной файл]\n");
             return 1;
         }
         break;
     case 'a':
         if (argc != 4)
         {
-            fprintf(stderr, "Формат для -a: [программа] -a [входной файл] [выходной файл]\n");
+            printf("Формат для -a: [программа] -a [входной файл] [выходной файл]\n");
             return 1;
         }
         break;
     default:
-        fprintf(stderr, "Флаги: r, a\n");
+        printf("Флаги: r, a\n");
         return 1;
     }
 
@@ -451,26 +484,26 @@ int main(int argc, char *argv[])
         in1 = fopen(argv[2], "r");
         if (in1 == NULL)
         {
-            fprintf(stderr, "Не удалось открыть файл '%s'\n", argv[2]);
+            printf("Не удалось открыть файл '%s'\n", argv[2]);
             return 1;
         }
         in2 = fopen(argv[3], "r");
         if (in2 == NULL)
         {
-            fprintf(stderr, "Не удалось открыть файл '%s'\n", argv[3]);
+            printf("Не удалось открыть файл '%s'\n", argv[3]);
             fclose(in1);
             return 1;
         }
         out = fopen(argv[4], "w");
         if (out == NULL)
         {
-            fprintf(stderr, "Не удалось открыть выходной файл '%s'\n", argv[4]);
+            printf("Не удалось открыть выходной файл '%s'\n", argv[4]);
             fclose(in1);
             fclose(in2);
             return 1;
         }
 
-        st = merge_files(in1, in2, out);
+        st = combine_files(in1, in2, out);
         fclose(in1);
         fclose(in2);
         break;
@@ -487,13 +520,13 @@ int main(int argc, char *argv[])
         in1 = fopen(argv[2], "r");
         if (in1 == NULL)
         {
-            fprintf(stderr, "Не удалось открыть файл '%s'\n", argv[2]);
+            printf("Не удалось открыть файл '%s'\n", argv[2]);
             return 1;
         }
         out = fopen(argv[3], "w");
         if (out == NULL)
         {
-            fprintf(stderr, "Не удалось открыть выходной файл '%s'\n", argv[3]);
+            printf("Не удалось открыть выходной файл '%s'\n", argv[3]);
             fclose(in1);
             return 1;
         }
@@ -503,7 +536,7 @@ int main(int argc, char *argv[])
         break;
     }
     default:
-        fprintf(stderr, "Флаги: r, a\n");
+        printf("Флаги: r, a\n");
         return 1;
     }
 

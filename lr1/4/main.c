@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 typedef enum
 {
@@ -62,7 +63,7 @@ status_t print_error(const status_t st)
     {
         return rc;
     }
-    fprintf(stderr, "Ошибка: %s\n", msg);
+    printf("Ошибка: %s\n", msg);
     return STATUS_OK;
 }
 
@@ -121,6 +122,26 @@ status_t make_out_path(const char *in_path, char *out_path, const size_t size)
     return STATUS_OK;
 }
 
+status_t get_file_name(const char *path, const char **name)
+{
+    if (path == NULL || name == NULL)
+    {
+        return STATUS_NULL_POINTER;
+    }
+
+    const char *result = path;
+    for (const char *p = path; *p != '\0'; p++)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            result = p + 1;
+        }
+    }
+
+    *name = result;
+    return STATUS_OK;
+}
+
 status_t check_paths(const char *in_path, const char *out_path)
 {
     if (in_path == NULL || out_path == NULL)
@@ -131,7 +152,20 @@ status_t check_paths(const char *in_path, const char *out_path)
     {
         return STATUS_EMPTY_PATH;
     }
-    if (strcmp(in_path, out_path) == 0)
+
+    const char *in_name;
+    const char *out_name;
+    status_t st = get_file_name(in_path, &in_name);
+    if (st == STATUS_OK)
+    {
+        st = get_file_name(out_path, &out_name);
+    }
+    if (st != STATUS_OK)
+    {
+        return st;
+    }
+
+    if (strcmp(in_name, out_name) == 0)
     {
         return STATUS_SAME_FILE;
     }
@@ -203,7 +237,7 @@ status_t count_per_line(FILE *in, FILE *out, const bool need_latins)
             {
                 return st;
             }
-            if (!latin && !digit && c != ' ')
+            if (!latin && !digit && !isspace(c))
             {
                 count++;
             }
@@ -264,13 +298,13 @@ int main(int argc, char *argv[])
 {
     if (argc < 3)
     {
-        fprintf(stderr, "Число аргументов должно быть не меньше 3\n");
+        printf("Число аргументов должно быть не меньше 3\n");
         return 1;
     }
 
     if ((argv[1][0] != '-' && argv[1][0] != '/') || argv[1][1] == '\0')
     {
-        fprintf(stderr, "Формат флага: -nX, /nX или -X, /X\n");
+        printf("Формат флага: -nX, /nX или -X, /X\n");
         return 1;
     }
 
@@ -288,24 +322,24 @@ int main(int argc, char *argv[])
     }
     else
     {
-        fprintf(stderr, "Формат флага: -nX, /nX или -X, /X\n");
+        printf("Формат флага: -nX, /nX или -X, /X\n");
         return 1;
     }
 
     if (flag != 'd' && flag != 'i' && flag != 's' && flag != 'a')
     {
-        fprintf(stderr, "Флаги: d, i, s, a\n");
+        printf("Флаги: d, i, s, a\n");
         return 1;
     }
 
     if (is_n && argc != 4)
     {
-        fprintf(stderr, "Верный формат с n: [программа] [флаг с n] [входной файл] [выходной файл]\n");
+        printf("Верный формат с n: [программа] [флаг с n] [входной файл] [выходной файл]\n");
         return 1;
     }
     if (!is_n && argc != 3)
     {
-        fprintf(stderr, "Верный формат без n: [программа] [флаг без n] [входной файл]\n");
+        printf("Верный формат без n: [программа] [флаг без n] [входной файл]\n");
         return 1;
     }
 
@@ -339,14 +373,14 @@ int main(int argc, char *argv[])
     FILE *in = fopen(in_path, "r");
     if (in == NULL)
     {
-        fprintf(stderr, "Не удалось открыть входной файл '%s'\n", in_path);
+        printf("Не удалось открыть входной файл '%s'\n", in_path);
         return 1;
     }
 
     FILE *out = fopen(out_path, "w");
     if (out == NULL)
     {
-        fprintf(stderr, "Не удалось открыть выходной файл '%s'\n", out_path);
+        printf("Не удалось открыть выходной файл '%s'\n", out_path);
         fclose(in);
         return 1;
     }

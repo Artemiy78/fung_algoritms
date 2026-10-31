@@ -1,12 +1,18 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <stdlib.h>
+
+typedef unsigned long long ull;
 
 typedef enum
 {
     STATUS_OK,
     STATUS_NULL_POINTER,
     STATUS_OUT_OF_RANGE,
+    STATUS_INVALID_NUMBER,
+    STATUS_OVERFLOW,
 } status_t;
 
 status_t status_message(const status_t status, const char **msg)
@@ -27,10 +33,34 @@ status_t status_message(const status_t status, const char **msg)
     case STATUS_NULL_POINTER:
         *msg = "нулевой указатель";
         break;
+    case STATUS_INVALID_NUMBER:
+        *msg = "аргумент не является целым числом";
+        break;
+    case STATUS_OVERFLOW:
+        *msg = "значение числа слишком велико";
+        break;
     default:
         *msg = "неизвестная ошибка";
         break;
     }
+    return STATUS_OK;
+}
+
+status_t parse_int(const char *s, int *out)
+{
+    if (s == NULL || out == NULL)
+        return STATUS_NULL_POINTER;
+
+    char *end = NULL;
+    long long v = strtoll(s, &end, 10);
+
+    if (end == s || *end != '\0')
+        return STATUS_INVALID_NUMBER;
+
+    if (v < INT_MIN || v > INT_MAX)
+        return STATUS_OUT_OF_RANGE;
+
+    *out = (int)v;
     return STATUS_OK;
 }
 
@@ -70,7 +100,7 @@ status_t check_prost(const int x, bool *is_prost)
     }
 
     bool result = true;
-    for (int i = 2; i < (int)(sqrt(x) + 1); i++)
+    for (int i = 2; i * i <= x; i++)
     {
         if (x % i == 0)
         {
@@ -117,7 +147,7 @@ status_t x_in_hex(const int x, char *res, size_t *size)
     return STATUS_OK;
 }
 
-status_t pow_table(const int x, size_t res[10][10])
+status_t pow_table(const int x, ull res[10][10])
 {
     if (res == NULL)
     {
@@ -130,15 +160,21 @@ status_t pow_table(const int x, size_t res[10][10])
 
     for (size_t i = 0; i < 10; i++)
     {
+        ull power = 1;
         for (size_t j = 0; j < (size_t)x; j++)
         {
-            res[i][j] = (size_t)pow(i + 1, j + 1);
+            if (power > ULLONG_MAX / (i + 1))
+            {
+                return STATUS_OVERFLOW;
+            }
+            power *= i + 1;
+            res[i][j] = power;
         }
     }
     return STATUS_OK;
 }
 
-status_t summ(const int x, size_t *res)
+status_t summ(const int x, ull *res)
 {
     if (res == NULL)
     {
@@ -149,30 +185,43 @@ status_t summ(const int x, size_t *res)
         return STATUS_OUT_OF_RANGE;
     }
 
-    size_t result = 0;
-    for (size_t i = 1; i <= (size_t)x; i++)
+    ull a = (ull)x;
+    ull b = (ull)x + 1;
+    if (a % 2 == 0)
     {
-        result += i;
+        a /= 2;
+    }
+    else
+    {
+        b /= 2;
+    }
+    if (a > ULLONG_MAX / b)
+    {
+        return STATUS_OVERFLOW;
     }
 
-    *res = result;
+    *res = a * b;
     return STATUS_OK;
 }
 
-status_t fact(const int x, size_t *res)
+status_t fact(const int x, ull *res)
 {
     if (res == NULL)
     {
         return STATUS_NULL_POINTER;
     }
-    if (x > 20 || x < 0)
+    if (x < 0)
     {
         return STATUS_OUT_OF_RANGE;
     }
 
-    size_t result = 1;
-    for (size_t i = 2; i <= (size_t)x; i++)
+    ull result = 1;
+    for (ull i = 2; i <= (ull)x; i++)
     {
+        if (result > ULLONG_MAX / i)
+        {
+            return STATUS_OVERFLOW;
+        }
         result *= i;
     }
 
@@ -184,27 +233,27 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        fprintf(stderr, "Неверный формат. Верный: [программа] [число] [флаг]\n");
+        printf("Неверный формат. Верный: [программа] [число] [флаг]\n");
         return 1;
     }
 
     int x;
-    char extra; // для отсечения строк вида 10abc или 5.4
-    if (sscanf(argv[1], "%d%c", &x, &extra) != 1)
+    status_t st = parse_int(argv[1], &x);
+    if (st != STATUS_OK)
     {
-        fprintf(stderr, "Второй аргумент должен быть числом\n");
+        const char *msg;
+        status_message(st, &msg);
+        printf("Ошибка: %s\n", msg);
         return 1;
     }
 
     if ((argv[2][0] != '-' && argv[2][0] != '/') ||
         argv[2][1] == '\0' || argv[2][2] != '\0')
     {
-        fprintf(stderr, "Флаг должен иметь формат -n или /n\n");
+        printf("Флаг должен иметь формат -n или /n\n");
         return 1;
     }
     char flag = argv[2][1];
-
-    status_t st;
 
     switch (flag)
     {
@@ -217,7 +266,7 @@ int main(int argc, char *argv[])
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
         if (count == 0)
@@ -244,7 +293,7 @@ int main(int argc, char *argv[])
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
         if (is_prost)
@@ -266,37 +315,37 @@ int main(int argc, char *argv[])
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
-        for (int i = count - 1; i >= 0; i--)
+        for (size_t i = count; i > 0; i--)
         {
-            printf("%c ", res[i]);
+            printf("%c ", res[i - 1]);
         }
         printf("\n");
         break;
     }
     case 'e':
     {
-        size_t res[10][10];
+        ull res[10][10];
         st = pow_table(x, res);
         if (st == STATUS_OUT_OF_RANGE)
         {
-            fprintf(stderr, "Число должно быть от 1 до 10\n");
+            printf("Число должно быть от 1 до 10\n");
             return 1;
         }
         else if (st != STATUS_OK)
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
         for (int i = 0; i < 10; i++)
         {
             for (int j = 0; j < x; j++)
             {
-                printf("%*zu ", x + 1, res[i][j]);
+                printf("%*llu ", x + 1, res[i][j]);
             }
             printf("\n");
         }
@@ -304,35 +353,35 @@ int main(int argc, char *argv[])
     }
     case 'a':
     {
-        size_t res;
+        ull res;
         st = summ(x, &res);
         if (st != STATUS_OK)
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
-        printf("%zu\n", res);
+        printf("%llu\n", res);
         break;
     }
     case 'f':
     {
-        size_t res;
+        ull res;
         st = fact(x, &res);
         if (st != STATUS_OK)
         {
             const char *msg;
             status_message(st, &msg);
-            fprintf(stderr, "Ошибка: %s\n", msg);
+            printf("Ошибка: %s\n", msg);
             return 1;
         }
-        printf("%zu\n", res);
+        printf("%llu\n", res);
         break;
     }
     default:
     {
-        fprintf(stderr, "Флаги: h, p, s, e, a, f\n");
+        printf("Флаги: h, p, s, e, a, f\n");
         return 1;
     }
     }

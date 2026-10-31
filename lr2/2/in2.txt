@@ -1,0 +1,11 @@
+5 Ivan Petrov 1000.50
+3 Anna Smith 2500
+7 Boris Adams 1000.5
+1 Carl Adams 1000.50
+2 Dina   Adams	1000.50
+4 Eva Zed 0
+9 Eva Zed 0.00
+ 
+8 Ann Smith 2500
+12 Bob Young 50.
+6 Last Line 10
