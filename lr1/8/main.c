@@ -369,9 +369,7 @@ status_t first_important(const char *token, const size_t len, size_t *start)
 status_t convert_file(FILE *in, FILE *out)
 {
     if (in == NULL || out == NULL)
-    {
         return STATUS_NULL_POINTER;
-    }
 
     while (1)
     {
@@ -379,13 +377,24 @@ status_t convert_file(FILE *in, FILE *out)
         size_t len;
         status_t st = read_token(in, &token, &len);
         if (st != STATUS_OK)
-        {
             return st;
-        }
         if (len == 0)
         {
             free(token);
             break;
+        }
+
+        bool is_negative = false;
+        size_t offset = 0;
+        if (token[0] == '-')
+        {
+            is_negative = true;
+            offset = 1;
+            if (len == 1)
+            {
+                free(token);
+                return STATUS_INVALID_CHAR;
+            }
         }
 
         unsigned base;
@@ -395,26 +404,33 @@ status_t convert_file(FILE *in, FILE *out)
         st = token_to_upper(token, len);
         if (st == STATUS_OK)
         {
-            st = min_base(token, len, &base);
+            st = min_base(token + offset, len - offset, &base);
         }
         if (st == STATUS_OK)
         {
-            st = to_decimal(token, len, base, &value);
+            st = to_decimal(token + offset, len - offset, base, &value);
         }
         if (st == STATUS_OK)
         {
-            st = first_important(token, len, &start);
+            st = first_important(token + offset, len - offset, &start);
         }
-        if (st == STATUS_OK && fprintf(out, "%s %u %llu\n", token + start, base, value) < 0)
+        if (st == STATUS_OK)
         {
-            st = STATUS_IO_ERROR;
+            if (is_negative)
+            {
+                if (fprintf(out, "-%s %u -%llu\n", token + offset + start, base, value) < 0)
+                    st = STATUS_IO_ERROR;
+            }
+            else
+            {
+                if (fprintf(out, "%s %u %llu\n", token + offset + start, base, value) < 0)
+                    st = STATUS_IO_ERROR;
+            }
         }
 
         free(token);
         if (st != STATUS_OK)
-        {
             return st;
-        }
     }
     return STATUS_OK;
 }

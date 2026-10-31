@@ -187,7 +187,7 @@ status_t sum_d(const double x, const double eps, double *out)
     if (eps <= 0)
         return STATUS_OUT_OF_RANGE;
 
-    const int MAX_ITERATIONS = 1000;
+    const int MAX_ITERATIONS = 1000000;
 
     double member = -x * x / 2;
     double sum = member;
@@ -257,7 +257,7 @@ status_t integrate(func_t f, const double a, const double b,
 
         for (int i = 0; i < n; i++)
         {
-            const double x_mid = a + (i + 0.5) * h;
+            const double x_mid = a + i * h + 0.5 * h;
             sum += f(x_mid);
         }
 
@@ -297,17 +297,58 @@ int main(int argc, char *argv[])
 
     if (eps <= 0 || eps >= 1)
     {
-        printf("Неверный ввод эпсилон. Эпсилон должен быть в диапазоне (0,1)\n");
+        printf("Неверный ввод эпсилон. Эпсилон должен быть в диапазоне (0,1) или эпсилон слишком мал\n");
         return 1;
     }
 
-    const double MIN_EPS = 1e-14;
+    const double MIN_EPS = 1e-13;
 
     if (eps < MIN_EPS)
     {
         printf("Epsilon слишком мал (%.2e), установлен минимум %.2e\n", eps, MIN_EPS);
         eps = MIN_EPS;
     }
+
+    const double x_a = 1.0;
+    const double x_b = 1.0;
+    const double x_c = 0.5;
+    const double x_d = 1.0;
+
+    double s_a, s_b, s_c, s_d;
+
+    printf("Вычисление сумм рядов\n\n");
+
+    printf("1. Сумма ряда A (e^x) при x = %.1f:\n", x_a);
+    st = sum_a(x_a, eps, &s_a);
+    if (st == STATUS_OK)
+        printf("Результат: %.10f\n", s_a);
+    else
+        print_error(st);
+    printf("Эталон:    %.10f\n\n", exp(x_a));
+
+    printf("2. Сумма ряда B (cos(x)) при x = %.1f:\n", x_b);
+    st = sum_b(x_b, eps, &s_b);
+    if (st == STATUS_OK)
+        printf("Результат: %.10f\n", s_b);
+    else
+        print_error(st);
+    printf("Эталон:    %.10f\n\n", cos(x_b));
+
+    printf("3. Сумма ряда C при x = %.1f:\n", x_c);
+    st = sum_c(x_c, eps, &s_c);
+    if (st == STATUS_OK)
+        printf("Результат: %.10f\n", s_c);
+    else
+        print_error(st);
+    printf("Этот ряд сходится к гипергеометрической функции\n\n");
+
+    printf("4. Сумма ряда D (e^(-x^2)) при x = %.1f:\n", x_d);
+    st = sum_d(x_d, eps, &s_d);
+    if (st == STATUS_OK)
+        printf("Результат: %.10f\n", s_d);
+    else
+        print_error(st);
+    printf("Эталон:    %.10f\n\n", 1.0 / sqrt(1.0 + x_d * x_d) - 1.0);
 
     printf("Вычисление интегралов с точностью eps = %.15f\n\n", eps);
 
