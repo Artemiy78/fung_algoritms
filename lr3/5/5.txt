@@ -1,0 +1,8 @@
+1 Alexander Romanenkov A1 5 5 5 5 5
+2 Anna Smirnova B2 3 3 4 3 3
+3 Ivan Sidorov A1 5 5 5 5 5
+4 Olga Petrova B2 2 3 2 3 3
+5 Maria Kuznetsova C3 4 4 3 4 5
+6 Petr Ivanov C3 0 2 3 2 2
+7 Anna Volkova A1 4 5 4 5 4
+8 Dmitry Orlov B2 3 4 3 3 4
