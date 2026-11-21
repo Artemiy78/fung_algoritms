@@ -175,7 +175,7 @@ status_t build_codes(const node_t *root, char (*codes)[256])
     return STATUS_OK;
 }
 
-status_t calc_stats(const ull *freq, const char (*codes)[256], ull *size, ull *bits)
+status_t calc_stats(const ull *freq, char (*codes)[256], ull *size, ull *bits)
 {
     if (freq == NULL || codes == NULL || size == NULL || bits == NULL)
         return STATUS_NULL_POINTER;
@@ -190,7 +190,7 @@ status_t calc_stats(const ull *freq, const char (*codes)[256], ull *size, ull *b
     return STATUS_OK;
 }
 
-status_t print_report(const ull *freq, const char (*codes)[256], const ull size, const ull bits)
+status_t print_report(const ull *freq, char (*codes)[256], const ull size, const ull bits)
 {
     if (freq == NULL || codes == NULL)
         return STATUS_NULL_POINTER;
